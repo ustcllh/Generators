@@ -8,11 +8,13 @@
 #include "TTree.h"
 #include "TDatime.h"
 #include "TH1D.h"
+#include "TNamed.h"
 
-//Non-Local (Utility) dependencies
+//Local dependencies
 #include "Utility/include/checkMakeDir.h"
 #include "Utility/include/getLinBins.h"
 #include "Utility/include/histDefUtility.h"
+#include "Utility/include/returnRootFileContentsList.h"
 
 int statisticalComparison(const std::string flatPthatFileName, const std::string stagPthatFileName)
 {
@@ -36,10 +38,56 @@ int statisticalComparison(const std::string flatPthatFileName, const std::string
   outFile_p->SetBit(TFile::kDevNull);
   TH1::AddDirectory(kFALSE);
 
-  const Int_t nPthatFiles = 14;
-  const Double_t pthatFiles[nPthatFiles+1] = {15., 30., 50., 80., 120., 170., 220., 280., 370., 460., 540., 630., 720., 800., 9999.};
-  //Cross sections in pb extracted from the 100k processing of each pthat, output in the log, grabbed with grep
-  const Double_t xSections[nPthatFiles+1] = {524329708.942, 34679381.584, 4029107.197, 491741.431, 71146.579, 12224.793, 3058.662, 774.598, 140.047, 32.435, 10.110, 2.970, 0.930, 0.347, 0.0000000};  
+  TFile* inStagFile_p = new TFile(stagPthatFileName.c_str(), "READ");
+  std::vector<std::string> tnamedPthat = returnRootFileContentsList(inStagFile_p, "TNamed", "crossSecti");
+
+  //Grabbing cross section values for weighting internally
+  const Int_t nPthatFiles = tnamedPthat.size();
+  Double_t pthatFiles[nPthatFiles+1];
+  Double_t xSections[nPthatFiles+1];
+  for(int pI = 0; pI < nPthatFiles; ++pI){
+    std::string pthatStr = tnamedPthat.at(pI);
+    pthatStr.replace(0, pthatStr.find("Pthat")+5, "");
+    pthatFiles[pI] = std::stod(pthatStr);
+    TNamed* temp = (TNamed*)inStagFile_p->Get(tnamedPthat.at(pI).c_str());
+    std::string xSectionStr = temp->GetTitle();
+    xSections[pI] = std::stod(xSectionStr);
+  }
+  pthatFiles[nPthatFiles] = 9999.;
+  xSections[nPthatFiles] = 0.000;
+
+  //do sort
+  int pos = 0;
+  while(pos < nPthatFiles){
+    bool isGood = true;
+
+    for(int pI = pos+1; pI < nPthatFiles+1; ++pI){
+      if(pthatFiles[pos] > pthatFiles[pI]){
+	Double_t tempPthat = pthatFiles[pI];
+	Double_t tempX = xSections[pI];
+	
+	pthatFiles[pI] = pthatFiles[pos];
+	xSections[pI] = xSections[pos];
+
+	pthatFiles[pos] = tempPthat;
+	xSections[pos] = tempX;
+
+	isGood = false;
+      }
+    }
+
+    if(isGood) ++pos;
+  }
+
+  std::cout << "Sorted xsections: " << std::endl;
+  for(Int_t pI = 0; pI < nPthatFiles+1; ++pI){
+    std::cout << " " << pI << "/" << nPthatFiles+1 << ": " << pthatFiles[pI] << ", " << xSections[pI] << std::endl;
+  }
+
+  inStagFile_p->Close();
+  delete inStagFile_p;
+  inStagFile_p = NULL;
+  
   Double_t nEvtPerPthatStag[nPthatFiles];
   Double_t nEvtPerPthatStag1200 = 0.;
   Double_t weightsPerPthat[nPthatFiles];
@@ -54,8 +102,10 @@ int statisticalComparison(const std::string flatPthatFileName, const std::string
   
   const Int_t nPthatBins = 200;
   Double_t pthatBins[nPthatBins+1];
-  const Double_t pthatLow = 15.;
-  const Double_t pthatHi = 1415.;
+  const Double_t pthatLow = pthatFiles[0];
+  Int_t pthatHiTemp = pthatFiles[nPthatFiles-1] + 615;
+  while((pthatHiTemp - (int)pthatLow)%100 != 0){--pthatHiTemp;}  
+  const Double_t pthatHi = pthatHiTemp;
   getLinBins(pthatLow, pthatHi, nPthatBins, pthatBins);
   
   TH1D* flatPthat_Unweighted_h = new TH1D("flatPthat_Unweighted_h", ";Flat p_{T} Hat (Unweighted);Counts (Unweighted)", nPthatBins, pthatBins);
@@ -73,6 +123,11 @@ int statisticalComparison(const std::string flatPthatFileName, const std::string
   
   TFile* inFlatFile_p = new TFile(flatPthatFileName.c_str(), "READ");
   TTree* flatGenTree_p = (TTree*)inFlatFile_p->Get("genTree");
+
+  flatGenTree_p->SetBranchStatus("*", 0);
+  flatGenTree_p->SetBranchStatus("pthat", 1);
+  flatGenTree_p->SetBranchStatus("weight", 1);
+
   flatGenTree_p->SetBranchAddress("pthat", &pthat_);
   flatGenTree_p->SetBranchAddress("weight", &weight_);
 
@@ -100,8 +155,13 @@ int statisticalComparison(const std::string flatPthatFileName, const std::string
   inFlatFile_p->Close();
   delete inFlatFile_p;
 
-  TFile* inStagFile_p = new TFile(stagPthatFileName.c_str(), "READ");
+  std::cout << "REOPEN FILE?" << std::endl;
+  inStagFile_p = new TFile(stagPthatFileName.c_str(), "READ");
   TTree* stagGenTree_p = (TTree*)inStagFile_p->Get("genTree");
+
+  stagGenTree_p->SetBranchStatus("*", 0);
+  stagGenTree_p->SetBranchStatus("pthat", 1);
+
   stagGenTree_p->SetBranchAddress("pthat", &pthat_);
 
   const Int_t nEntriesStag = stagGenTree_p->GetEntries();
@@ -158,7 +218,6 @@ int statisticalComparison(const std::string flatPthatFileName, const std::string
     stagPthat_Unweighted_h->Fill(pthat_);
     stagPthat_Weighted_h->Fill(pthat_, tempWeight_);
   }
-
 
   inStagFile_p->Close();
   delete inStagFile_p;
