@@ -14,9 +14,9 @@ ROOT=$(shell root-config --cflags --glibs)
 #PYTHIA8=$(shell pythia8-config --cflags --libs --lhapdf6)
 MOREPYTHIA8=-I$(PYTHIA8PATH)/include -O2 -pedantic -W -Wall -Wshadow -fPIC -L$(PYTHIA8PATH)/lib -Wl,-rpath,$(PYTHIA8PATH)/lib -lpythia8 -ldl
 #^based on make of examples
-LHAPDF6=-I/home/cfmcginn/Packages/Generators/LHAPDF6/LHAPDF6-build/include -L/home/cfmcginn/Packages/Generators/LHAPDF6/LHAPDF6-build/lib -lLHAPDF
+#LHAPDF6=-I/home/cfmcginn/Packages/Generators/LHAPDF6/LHAPDF6-build/include -L/home/cfmcginn/Packages/Generators/LHAPDF6/LHAPDF6-build/lib -lLHAPDF
+LHAPDF6=-I$(LHAPDF6PATH)/include -L$(LHAPDF6PATH)/lib -lLHAPDF
 FASTJET=$(shell $(FASTJETPATH)/bin/fastjet-config --cxxflags --libs --plugins)
-
 
 MKDIR_BIN=mkdir -p $(PWD)/bin
 MKDIR_OUTPUT=mkdir -p $(PWD)/output
