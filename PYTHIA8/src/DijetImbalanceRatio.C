@@ -217,7 +217,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Float_t dphi = abs(jet_phi->at(leading) - jet_phi->at(subleading));
     dphi_flatPthat_Unweighted_h->Fill(dphi);
     dphi_flatPthat_Weighted_h->Fill(dphi, weight_ / weightRenorm);
-    if (dphi < pi / 3)
+    if (dphi < pi / 3 || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40)
       continue;
     Float_t xj = jet_pt->at(subleading) / jet_pt->at(leading);
     dijet_flatPthat_Unweighted_h->Fill(xj);
@@ -277,13 +277,13 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
   }
 
   std::
-    cout << "Number / pthat: Staggered, Flat (rescaled to a 70 million req.)" <<
+    cout << "Number / pthat: Staggered, Flat (rescaled to a 1400000 req.)" <<
     std::endl;
   for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
     std::
       cout << " " << pI << "/" << nPthatFiles << " (" << pthatFiles[pI] << "): "
-      << nEvtPerPthatStag[pI] * 70000000. /
-      nEntriesStag << ", " << nEvtPerPthatFlat[pI] * 70000000. /
+      << nEvtPerPthatStag[pI] * 1400000. /
+      nEntriesStag << ", " << nEvtPerPthatFlat[pI] * 1400000. /
       nEntries << std::endl;
   }
 
@@ -340,7 +340,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Float_t dphi = abs(jet_phi->at(leading) - jet_phi->at(subleading));
     dphi_stagPthat_Unweighted_h->Fill(dphi);
     dphi_stagPthat_Weighted_h->Fill(dphi, tempWeight_);
-    if (dphi < pi / 3)
+    if (dphi < pi / 3 || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40)
       continue;
     Float_t xj = jet_pt->at(subleading) / jet_pt->at(leading);
     dijet_stagPthat_Unweighted_h->Fill(xj);
@@ -375,12 +375,12 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Clone("dphi_flatPthat_Unweighted_ScaleRelErr_h");
 
   dijet_flatPthat_Unweighted_ScaleRelErr_h->GetYaxis()->
-    SetTitle("Relative Error, 7E10stat");
+    SetTitle("Relative Error, 140k stat");
   dphi_flatPthat_Unweighted_ScaleRelErr_h->GetYaxis()->
-    SetTitle("Relative Error, 7E10stat");
+    SetTitle("Relative Error, 140k stat");
 
   std::cout << "dijet_flatPthat scale" << std::endl;
-  Double_t flatScaleFact = 70000000. / nEntries;
+  Double_t flatScaleFact = 1400000. / nEntries;
   for (Int_t bIX = 0; bIX < dijet_flatPthat_Unweighted_Scale_h->GetNbinsX();
        ++bIX) {
     Double_t binVal =
@@ -473,9 +473,9 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Clone("dijet_stagPthat_Unweighted_ScaleRelErr_h");
 
   dijet_stagPthat_Unweighted_ScaleRelErr_h->GetYaxis()->
-    SetTitle("Relative Error, 7E10stat");
+    SetTitle("Relative Error, 1400000 stat");
 
-  Double_t stagScaleFact = 70000000. / nEntriesStag;
+  Double_t stagScaleFact = 1400000. / nEntriesStag;
   for (Int_t bIX = 0; bIX < dijet_stagPthat_Unweighted_Scale_h->GetNbinsX();
        ++bIX) {
     Double_t binVal =
@@ -513,7 +513,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Clone("dphi_stagPthat_Unweighted_ScaleRelErr_h");
 
   dphi_stagPthat_Unweighted_ScaleRelErr_h->GetYaxis()->
-    SetTitle("Relative Error, 7E10stat");
+    SetTitle("Relative Error, 1400000 stat");
 
   for (Int_t bIX = 0; bIX < dphi_stagPthat_Unweighted_Scale_h->GetNbinsX();
        ++bIX) {
