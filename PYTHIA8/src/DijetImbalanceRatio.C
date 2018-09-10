@@ -16,6 +16,9 @@
 #include "Utility/include/histDefUtility.h"
 #include "Utility/include/returnRootFileContentsList.h"
 
+//Define PI
+#define PI 3.14159265359
+
 int DijetImbalanceRatio(const std::string flatPthatFileName,
                         const std::string stagPthatFileName)
 {
@@ -112,31 +115,30 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
 
 
   // note: use uniform binning
-  Double_t pi = 3.1415926;
   TH1D *dijet_flatPthat_Unweighted_h =
     new TH1D("dijet_flatPthat_Unweighted_h",
-             ";Flat X_J (Unweighted);Counts (Unweighted)", 10, 0, 1);
+             ";Flat X_{J} (Unweighted);Counts (Unweighted)", 10, 0, 1);
   TH1D *dijet_flatPthat_Weighted_h =
     new TH1D("dijet_flatPthat_Weighted_h",
-             ";Flat X_J (Weighted);Counts (Weighted)", 10, 0, 1);
+             ";Flat X_{J} (Weighted);Counts (Weighted)", 10, 0, 1);
   TH1D *dijet_stagPthat_Unweighted_h =
     new TH1D("dijet_stagPthat_Unweighted_h",
-             ";Stag X_J (Unweighted);Counts (Unweighted)", 10, 0, 1);
+             ";Stag X_{J} (Unweighted);Counts (Unweighted)", 10, 0, 1);
   TH1D *dijet_stagPthat_Weighted_h =
     new TH1D("dijet_stagPthat_Weighted_h",
-             ";Stag X_J (Weighted);Counts (Weighted)", 10, 0, 1);
+             ";Stag X_{J} (Weighted);Counts (Weighted)", 10, 0, 1);
   TH1D *dphi_flatPthat_Unweighted_h =
     new TH1D("dphi_flatPthat_Unweighted_h",
-             ";Flat |#Delta#phi|;Counts (Unweighted)", 20, 0, pi);
+             ";Flat |#Delta#phi|;Counts (Unweighted)", 20, 0, PI);
   TH1D *dphi_flatPthat_Weighted_h =
     new TH1D("dphi_flatPthat_Weighted_h",
-             ";Flat |#Delta#phi|;Counts (Weighted)", 20, 0, pi);
+             ";Flat |#Delta#phi|;Counts (Weighted)", 20, 0, PI);
   TH1D *dphi_stagPthat_Unweighted_h =
     new TH1D("dphi_stagPthat_Unweighted_h",
-             ";Stag |#Delta#phi| (Unweighted);Counts (Unweighted)", 20, 0, pi);
+             ";Stag |#Delta#phi| (Unweighted);Counts (Unweighted)", 20, 0, PI);
   TH1D *dphi_stagPthat_Weighted_h =
     new TH1D("dphi_stagPthat_Weighted_h",
-             ";Stag |#Delta#phi| (Unweighted);Counts (Weighted)", 20, 0, pi);
+             ";Stag |#Delta#phi| (Unweighted);Counts (Weighted)", 20, 0, PI);
   std::vector < TH1 * >tempVect = {
   dijet_flatPthat_Unweighted_h, dijet_flatPthat_Weighted_h,
       dijet_stagPthat_Unweighted_h, dijet_stagPthat_Weighted_h,
@@ -214,10 +216,11 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
           continue;
       }
     }
-    Float_t dphi = abs(jet_phi->at(leading) - jet_phi->at(subleading));
+    Float_t dphi = std::abs(jet_phi->at(leading) - jet_phi->at(subleading));
+    if(dphi>PI) dphi=2*PI-dphi;
     dphi_flatPthat_Unweighted_h->Fill(dphi);
     dphi_flatPthat_Weighted_h->Fill(dphi, weight_ / weightRenorm);
-    if (dphi < pi / 3 || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40)
+    if (dphi < PI * 2. / 3. || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40 || std::abs(jet_eta->at(leading))>1.5 || std::abs(jet_eta->at(leading))>1.5)
       continue;
     Float_t xj = jet_pt->at(subleading) / jet_pt->at(leading);
     dijet_flatPthat_Unweighted_h->Fill(xj);
@@ -337,10 +340,11 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
           continue;
       }
     }
-    Float_t dphi = abs(jet_phi->at(leading) - jet_phi->at(subleading));
+    Float_t dphi = std::abs(jet_phi->at(leading) - jet_phi->at(subleading));
+    if(dphi>PI) dphi=2*PI-dphi;
     dphi_stagPthat_Unweighted_h->Fill(dphi);
     dphi_stagPthat_Weighted_h->Fill(dphi, tempWeight_);
-    if (dphi < pi / 3 || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40)
+    if (dphi < PI * 2./ 3. || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40 || std::abs(jet_eta->at(leading))>1.5 || std::abs(jet_eta->at(leading))>1.5)
       continue;
     Float_t xj = jet_pt->at(subleading) / jet_pt->at(leading);
     dijet_stagPthat_Unweighted_h->Fill(xj);
@@ -394,7 +398,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Double_t binRelErr = 0.0;
     Double_t binRelErrErr = 0.0;
 
-    if (binVal > 0) {
+    if (binVal > 1) {
       binRelErr = 1. / TMath::Sqrt(binVal);
       binRelErrErr =
         TMath::Max(TMath::Abs(1. / TMath::Sqrt(binVal - binErr) - binRelErr),
@@ -422,7 +426,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Double_t binRelErr = 0.0;
     Double_t binRelErrErr = 0.0;
 
-    if (binVal > 0) {
+    if (binVal > 1) {
       binRelErr = 1. / TMath::Sqrt(binVal);
       binRelErrErr =
         TMath::Max(TMath::Abs(1. / TMath::Sqrt(binVal - binErr) - binRelErr),
@@ -489,7 +493,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Double_t binRelErr = 0.0;
     Double_t binRelErrErr = 0.0;
 
-    if (binVal > 0) {
+    if (binVal > 1) {
       binRelErr = 1. / TMath::Sqrt(binVal);
       binRelErrErr =
         TMath::Max(TMath::Abs(1. / TMath::Sqrt(binVal - binErr) - binRelErr),
@@ -527,7 +531,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
     Double_t binRelErr = 0.0;
     Double_t binRelErrErr = 0.0;
 
-    if (binVal > 0) {
+    if (binVal > 1) {
       binRelErr = 1. / TMath::Sqrt(binVal);
       binRelErrErr =
         TMath::Max(TMath::Abs(1. / TMath::Sqrt(binVal - binErr) - binRelErr),
