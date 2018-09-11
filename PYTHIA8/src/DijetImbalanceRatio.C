@@ -216,11 +216,11 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
           continue;
       }
     }
-    Float_t dphi = std::abs(jet_phi->at(leading) - jet_phi->at(subleading));
+    Float_t dphi = std::fabs(jet_phi->at(leading) - jet_phi->at(subleading));
     if(dphi>PI) dphi=2*PI-dphi;
     dphi_flatPthat_Unweighted_h->Fill(dphi);
     dphi_flatPthat_Weighted_h->Fill(dphi, weight_ / weightRenorm);
-    if (dphi < PI * 2. / 3. || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40 || std::abs(jet_eta->at(leading))>1.5 || std::abs(jet_eta->at(leading))>1.5)
+    if (dphi < PI * 2. / 3. || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40 || std::fabs(jet_eta->at(leading))>1.5 || std::fabs(jet_eta->at(leading))>1.5)
       continue;
     Float_t xj = jet_pt->at(subleading) / jet_pt->at(leading);
     dijet_flatPthat_Unweighted_h->Fill(xj);
@@ -340,11 +340,11 @@ int DijetImbalanceRatio(const std::string flatPthatFileName,
           continue;
       }
     }
-    Float_t dphi = std::abs(jet_phi->at(leading) - jet_phi->at(subleading));
+    Float_t dphi = std::fabs(jet_phi->at(leading) - jet_phi->at(subleading));
     if(dphi>PI) dphi=2*PI-dphi;
     dphi_stagPthat_Unweighted_h->Fill(dphi);
     dphi_stagPthat_Weighted_h->Fill(dphi, tempWeight_);
-    if (dphi < PI * 2./ 3. || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40 || std::abs(jet_eta->at(leading))>1.5 || std::abs(jet_eta->at(leading))>1.5)
+    if (dphi < PI * 2./ 3. || jet_pt->at(leading)<100 || jet_pt->at(subleading)<40 || std::fabs(jet_eta->at(leading))>1.5 || std::fabs(jet_eta->at(leading))>1.5)
       continue;
     Float_t xj = jet_pt->at(subleading) / jet_pt->at(leading);
     dijet_stagPthat_Unweighted_h->Fill(xj);
