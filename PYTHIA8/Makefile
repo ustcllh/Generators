@@ -22,7 +22,7 @@ MKDIR_BIN=mkdir -p $(PWD)/bin
 MKDIR_OUTPUT=mkdir -p $(PWD)/output
 MKDIR_PDF=mkdir -p $(PWD)/pdfDir
 
-all: mkdirBin mkdirPdf mkdirOutput bin/pythia8CUETP8M2T4.exe bin/statisticalComparison.exe bin/removeDuplicateTNamed.exe bin/DijetImbalanceRatio.exe
+all: mkdirBin mkdirPdf mkdirOutput bin/pythia8CUETP8M2T4.exe bin/statisticalComparison.exe bin/removeDuplicateTNamed.exe bin/DijetImbalanceRatio.exe bin/DijetImbalanceRatio_pythia6.exe
 
 mkdirBin:
 	$(MKDIR_BIN)
@@ -44,6 +44,9 @@ bin/removeDuplicateTNamed.exe: src/removeDuplicateTNamed.C
 
 bin/DijetImbalanceRatio.exe: src/DijetImbalanceRatio.C
 	$(CXX) src/DijetImbalanceRatio.C -o bin/DijetImbalanceRatio.exe $(CXXFLAGS) $(ROOT) $(INCLUDE) 
+
+bin/DijetImbalanceRatio_pythia6.exe: src/DijetImbalanceRatio_pythia6.C
+	$(CXX) src/DijetImbalanceRatio_pythia6.C -o bin/DijetImbalanceRatio_pythia.exe $(CXXFLAGS) $(ROOT) $(INCLUDE) 
 
 clean:
 	rm -f ./*~
