@@ -95,7 +95,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   inStagFile_p = NULL;
 
   Double_t nEvtPerPthatStag[nPthatFiles];
-  Double_t nEvtPerPthatStag1200 = 0.;
+  // Double_t nEvtPerPthatStag1200 = 0.;
   Double_t weightsPerPthat[nPthatFiles];
 
   Double_t nEvtPerPthatFlat[nPthatFiles];
@@ -172,8 +172,9 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   for (Int_t entry = 0; entry < nEntries; ++entry) {
     flatGenTree_p->GetEntry(entry);
 
-    if (pthat_ < 15.)
+    if (pthat_ < 15.){
       pthat_ = 15.;
+    }
 
     for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
       if (pthat_ >= pthatFiles[pI] && pthat_ < pthatFiles[pI + 1]) {
@@ -187,6 +188,10 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   std::cout << "Processing flatGenTree, nEntries=" << nEntries << "..." << std::endl;
   for (Int_t entry = 0; entry < nEntries; ++entry) {
     flatGenTree_p->GetEntry(entry);
+    if (pthat_ < 15.){
+      pthat_ = 15.;
+    }
+
     int leading = 0;
     int subleading = 0;
     Float_t leading_pt = -9999;
@@ -194,8 +199,10 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
     if (n_jet == 0 || n_jet == 1)
       continue;
     for (int i = 0; i < n_jet; i++) {
-    jetpt_flatPthat_Unweighted_h->Fill(jet_pt->at(i));
-    jetpt_flatPthat_Weighted_h->Fill(jet_pt->at(i), weight_ / weightRenorm);
+        if(jet_pt->at(i)>50){
+      jetpt_flatPthat_Unweighted_h->Fill(jet_pt->at(i));
+      jetpt_flatPthat_Weighted_h->Fill(jet_pt->at(i), weight_ / weightRenorm);
+    }
       if (jet_pt->at(i) > leading_pt) {
         if (leading_pt > subleading_pt) {
           subleading_pt = leading_pt;
@@ -249,10 +256,9 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   for (Int_t entry = 0; entry < nEntriesStag; ++entry) {
     stagGenTree_p->GetEntry(entry);
 
-    if (pthat_ < 15.)
-      pthat_ = 15.;
-    if (pthat_ >= 1200.)
-      ++nEvtPerPthatStag1200;
+    if (pthat_ < 15.){
+      pthat_ = 15;
+    }
 
     for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
       if (pthat_ >= pthatFiles[pI] && pthat_ < pthatFiles[pI + 1]) {
@@ -264,35 +270,42 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
 
   std::cout << "Number / pthat: Staggered, Flat (not rescaled)" << std::endl;
   for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
-    std::cout << " " << pI << "/" << nPthatFiles << " (" << pthatFiles[pI] << "): "
-      << nEvtPerPthatStag[pI] << ", " << nEvtPerPthatFlat[pI] << std::endl;
+    // std::cout << " " << pI << "/" << nPthatFiles << " (" << pthatFiles[pI] << "): "
+    //   << nEvtPerPthatStag[pI] << ", " << nEvtPerPthatFlat[pI] << std::endl;
 
     weightsPerPthat[pI] = (xSections[pI] - xSections[pI + 1]) / (nEvtPerPthatStag[pI]);
   }
-
-  std::cout << "Number / pthat: Staggered, Flat (rescaled to a 1400000 req.)" << std::endl;
-  for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
-    std::cout << " " << pI << "/" << nPthatFiles << " (" << pthatFiles[pI] << "): "
-      << nEvtPerPthatStag[pI] * 1400000. /
-      nEntriesStag << ", " << nEvtPerPthatFlat[pI] * 1400000. / nEntries << std::endl;
-  }
-
-  std::cout << "Fraction > 800 that comes from > 1200 in staggered: " << std::endl;
-  std::cout << " " << nEvtPerPthatStag1200 << "/" << nEvtPerPthatStag[nPthatFiles -
-                                                                      1] << "=" <<
-    nEvtPerPthatStag1200 / nEvtPerPthatStag[nPthatFiles - 1] << std::endl;
+  //
+  // std::cout << "Number / pthat: Staggered, Flat (rescaled to a 1400000 req.)" << std::endl;
+  // for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
+  //   std::cout << " " << pI << "/" << nPthatFiles << " (" << pthatFiles[pI] << "): "
+  //     << nEvtPerPthatStag[pI] * 1400000. /
+  //     nEntriesStag << ", " << nEvtPerPthatFlat[pI] * 1400000. / nEntries << std::endl;
+  // }
+  //
+  // std::cout << "Fraction > 800 that comes from > 1200 in staggered: " << std::endl;
+  // std::cout << " " << nEvtPerPthatStag1200 << "/" << nEvtPerPthatStag[nPthatFiles -
+  //                                                                     1] << "=" <<
+  //   nEvtPerPthatStag1200 / nEvtPerPthatStag[nPthatFiles - 1] << std::endl;
 
   for (Int_t pI = 1; pI < nPthatFiles; ++pI) {
     weightsPerPthat[pI] /= weightsPerPthat[0];
   }
   weightsPerPthat[0] = 1.;
 
+  std::cout << "weight / pthat: Staggered" << std::endl;
+  for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
+    std::cout << " " << pI << "/" << nPthatFiles << " (" << pthatFiles[pI] << "): "
+      << weightsPerPthat[pI] << std::endl;
+  }
+
   std::cout << "Processing stagGenTree, nEntries=" << nEntriesStag << "..." << std::endl;
   for (Int_t entry = 0; entry < nEntriesStag; ++entry) {
     stagGenTree_p->GetEntry(entry);
 
-    if (pthat_ < 15.)
-      pthat_ = 15.;
+    if (pthat_ < 15.){
+      pthat_ = 15;
+    }
 
     Double_t tempWeight_ = 1.;
     for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
@@ -308,8 +321,10 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
     if (n_jet == 0 || n_jet == 1)
       continue;
     for (int i = 0; i < n_jet; i++) {
+      if(jet_pt->at(i)>50){
     jetpt_stagPthat_Unweighted_h->Fill(jet_pt->at(i));
     jetpt_stagPthat_Weighted_h->Fill(jet_pt->at(i), tempWeight_);
+  }
       if (jet_pt->at(i) > leading_pt) {
         if (leading_pt > subleading_pt) {
           subleading_pt = leading_pt;
@@ -363,8 +378,8 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   TH1D *dphi_flatPthat_Unweighted_ScaleRelErr_h =
     (TH1D *) dphi_flatPthat_Unweighted_h->Clone("dphi_flatPthat_Unweighted_ScaleRelErr_h");
 
-  dijet_flatPthat_Unweighted_ScaleRelErr_h->GetYaxis()->SetTitle("Relative Error, 140k stat");
-  dphi_flatPthat_Unweighted_ScaleRelErr_h->GetYaxis()->SetTitle("Relative Error, 140k stat");
+  dijet_flatPthat_Unweighted_ScaleRelErr_h->GetYaxis()->SetTitle("Relative Error, 1.4M stat");
+  dphi_flatPthat_Unweighted_ScaleRelErr_h->GetYaxis()->SetTitle("Relative Error, 1.4M stat");
 
   std::cout << "dijet_flatPthat scale" << std::endl;
   Double_t flatScaleFact = 1400000. / nEntries;
@@ -437,7 +452,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   TH1D *dijet_stagPthat_Unweighted_ScaleRelErr_h =
     (TH1D *) dijet_stagPthat_Unweighted_h->Clone("dijet_stagPthat_Unweighted_ScaleRelErr_h");
 
-  dijet_stagPthat_Unweighted_ScaleRelErr_h->GetYaxis()->SetTitle("Relative Error, 1400000 stat");
+  dijet_stagPthat_Unweighted_ScaleRelErr_h->GetYaxis()->SetTitle("Relative Error, 1.4M stat");
 
   Double_t stagScaleFact = 1400000. / nEntriesStag;
   for (Int_t bIX = 0; bIX < dijet_stagPthat_Unweighted_Scale_h->GetNbinsX(); ++bIX) {
@@ -469,7 +484,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   TH1D *dphi_stagPthat_Unweighted_ScaleRelErr_h =
     (TH1D *) dphi_stagPthat_Unweighted_h->Clone("dphi_stagPthat_Unweighted_ScaleRelErr_h");
 
-  dphi_stagPthat_Unweighted_ScaleRelErr_h->GetYaxis()->SetTitle("Relative Error, 1400000 stat");
+  dphi_stagPthat_Unweighted_ScaleRelErr_h->GetYaxis()->SetTitle("Relative Error, 1.4M stat");
 
   for (Int_t bIX = 0; bIX < dphi_stagPthat_Unweighted_Scale_h->GetNbinsX(); ++bIX) {
     Double_t binVal = dphi_stagPthat_Unweighted_Scale_h->GetBinContent(bIX + 1) * stagScaleFact;
@@ -517,7 +532,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   delete dphi_stagPthat_Weighted_Norm_h;
   delete dphi_stagPthat_Unweighted_Scale_h;
   delete dphi_stagPthat_Unweighted_ScaleRelErr_h;
-  
+
   delete jetpt_flatPthat_Unweighted_h;
   delete jetpt_flatPthat_Weighted_h;
   delete jetpt_stagPthat_Unweighted_h;

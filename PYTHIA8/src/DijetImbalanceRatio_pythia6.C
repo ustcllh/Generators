@@ -91,7 +91,7 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
   inStagFile_p = NULL;
 
   Double_t nEvtPerPthatStag[nPthatFiles];
-  Double_t nEvtPerPthatStag1200 = 0.;
+  // Double_t nEvtPerPthatStag1200 = 0.;
   Double_t weightsPerPthat[nPthatFiles];
 
   for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
@@ -154,10 +154,9 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
   for (Int_t entry = 0; entry < nEntriesStag; ++entry) {
     stagGenTree_p->GetEntry(entry);
 
-    if (pthat_ < 15.)
-      pthat_ = 15.;
-    if (pthat_ >= 1200.)
-      ++nEvtPerPthatStag1200;
+    if (pthat_ < 30.){
+      pthat_ = 30;
+    }
 
     for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
       if (pthat_ >= pthatFiles[pI] && pthat_ < pthatFiles[pI + 1]) {
@@ -171,17 +170,25 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
     weightsPerPthat[pI] = (xSections[pI] - xSections[pI + 1]) / (nEvtPerPthatStag[pI]);
   }
 
-  for (Int_t pI = 1; pI < nPthatFiles; ++pI) {
-    weightsPerPthat[pI] /= weightsPerPthat[0];
+  for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
+    if(pI==1) continue;
+    weightsPerPthat[pI] /= weightsPerPthat[1];
   }
-  weightsPerPthat[0] = 1.;
+  weightsPerPthat[1] = 1.;
+
+  std::cout << "weight / pthat: Staggered" << std::endl;
+  for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
+    std::cout << " " << pI << "/" << nPthatFiles << " (" << pthatFiles[pI] << "): "
+      << weightsPerPthat[pI] << std::endl;
+  }
 
   std::cout << "Processing stagGenTree, nEntries=" << nEntriesStag << "..." << std::endl;
   for (Int_t entry = 0; entry < nEntriesStag; ++entry) {
     stagGenTree_p->GetEntry(entry);
 
-    if (pthat_ < 15.)
-      pthat_ = 15.;
+    if (pthat_ < 30.){
+      pthat_ = 30;
+    }
 
     Double_t tempWeight_ = 1.;
     for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
@@ -197,8 +204,10 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
     if (n_jet == 0 || n_jet == 1)
       continue;
     for (int i = 0; i < n_jet; i++) {
+      if(jet_pt->at(i)>50){
     jetpt_stagPthat_Unweighted_h->Fill(jet_pt->at(i));
     jetpt_stagPthat_Weighted_h->Fill(jet_pt->at(i), tempWeight_);
+  }
       if (jet_pt->at(i) > leading_pt) {
         if (leading_pt > subleading_pt) {
           subleading_pt = leading_pt;
