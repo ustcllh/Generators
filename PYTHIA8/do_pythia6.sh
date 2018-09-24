@@ -1,3 +1,3 @@
 #!/bin/bash
 ./bin/DijetImbalanceRatio_pythia.exe /eos/cms/store/group/phys_heavyions/cmcginn/PYTHIA6_ak4GenSkim_20180916/HiForestAOD_Pythia6_AllPthatMERGED_pp502_ak4PFOnly_20180915_180915_19185_MERGED_ForestToGen_20180916_RemovedDupTNamed.root
-mv output/statComp*.root output/pythia6.root
+mv output/statComp*.root output/PYTHIA6.root

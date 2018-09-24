@@ -16,7 +16,7 @@ int plot(){
     "CUETP8M2T4",
     "CP5",
     "Vanilla",
-    "pythia6"
+    "PYTHIA6"
   };
   gSystem->Exec("mkdir comp");
   for(int i=0; i<5; i++){
@@ -68,7 +68,7 @@ int plot(){
     f->GetObject("jetpt_stagPthat_Weighted_h",h_jet_spectrum[i][3]);
     for(int j=0; j<4; j++) {
       if(i==4&&(j==0||j==1)) continue;
-      // h_jet_spectrum[i][j]->Rebin(5);
+      h_jet_spectrum[i][j]->Rebin(5);
       h_jet_spectrum[i][j]->SetTitle(files[i].Data());
       h_jet_spectrum[i][j]->Sumw2();
       double binsize = h_jet_spectrum[i][j]->GetXaxis()->GetBinWidth(1);
@@ -201,7 +201,10 @@ int plot(){
     TCanvas* c_dphi_stag = new TCanvas("c_dphi_stag", "c_dphi_stag", 800, 600);
     TCanvas* c_dijet_flat = new TCanvas("c_dijet_flat", "c_dijet_flat", 800, 600);
     TCanvas* c_dijet_stag = new TCanvas("c_dijet_stag", "c_dijet_stag", 800, 600);
+    TCanvas* c_dijet_stag_pythia6 = new TCanvas("c_dijet_stag_pythia6", "c_dijet_stag_pythia6", 800, 600);
     TLegend* l_spectrum = new TLegend(0.6,0.75,0.9,0.9);
+    TLegend* l_spectrum2 = new TLegend(0.6,0.75,0.9,0.9);
+    TLegend* l_spectrum3 = new TLegend(0.6,0.75,0.9,0.9);
     TLine *line1 = new TLine(0,1,1,1);
     line1->SetLineStyle(2);
     TLine *line2 = new TLine(0,1,3.141592,1);
@@ -228,6 +231,7 @@ int plot(){
       jetpt_flat->SetLineColor(i==4?i+2:1+i);
       jetpt_flat->Draw("same");
       l_spectrum->AddEntry(jetpt_flat, Form("%s/CUETP8M1",files[i].Data()));
+      l_spectrum2->AddEntry(jetpt_flat, Form("%s/CUETP8M1",files[i].Data()));
       l_spectrum->Draw("same");
     }
 
@@ -257,7 +261,9 @@ int plot(){
       line1->Draw("same");
     }
 
-    // dphi distribution over CUETP8M1 flat in one frame
+
+
+    // dphi distribution over CUETP8M1 flat in one frame -- no pythia6
     if(i!=4){
       TCanvas* c9 = new TCanvas("c9", "c9", 800, 600);
       c9->cd();
@@ -287,7 +293,7 @@ int plot(){
     TH1D* jetpt_stag = (TH1D*) h_jet_spectrum[i][3]->Clone();
     jetpt_stag->Sumw2();
     jetpt_stag->Divide(h_jet_spectrum[0][3]);
-    jetpt_stag->GetYaxis()->SetRangeUser(0.6,2.0);
+    jetpt_stag->GetYaxis()->SetRangeUser(0.6,1.4);
     jetpt_stag->GetXaxis()->SetTitle("inclusive jet p_{T} (Stag Weighted)");
     jetpt_stag->GetYaxis()->SetTitle(Form("%s/CUETP8M1",files[i].Data()));
     jetpt_stag->Draw();
@@ -299,8 +305,33 @@ int plot(){
     jetpt_stag->SetMarkerColor(i==4?i+2:1+i);
     jetpt_stag->SetLineColor(i==4?i+2:1+i);
     jetpt_stag->Draw("same");
-    if(i==4) l_spectrum->AddEntry(jetpt_stag, Form("%s/CUETP8M1",files[4].Data()));
-    l_spectrum->Draw("same");
+    if(i==4) l_spectrum2->AddEntry(jetpt_stag, Form("%s/CUETP8M1",files[4].Data()));
+    l_spectrum2->Draw("same");
+
+
+
+    // dphi distribution over CUETP8M1 stag in one frame
+    TCanvas* c8 = new TCanvas("c8", "c8", 800, 600);
+    c8->cd();
+    gPad->SetLogy();
+    TH1D* dphi_stag = (TH1D*) h_dijet[i][1]->Clone();
+    dphi_stag->Sumw2();
+    dphi_stag->Divide(h_dijet[0][1]);
+    dphi_stag->GetYaxis()->SetRangeUser(0.6,1.4);
+    dphi_stag->GetXaxis()->SetTitle("|#Delta#phi| (Stag Weighted)");
+    dphi_stag->GetYaxis()->SetTitle(Form("%s/CUETP8M1",files[i].Data()));
+    dphi_stag->Draw();
+    line2->Draw("same");
+    c8->SaveAs("./comp/dphi_stag_" + files[i]+ "_CUETP8M1.pdf");
+    c_dphi_stag->cd();
+    dphi_stag->GetYaxis()->SetTitle("Tune/CUETP8M1");
+    dphi_stag->SetTitle("");
+    dphi_stag->SetMarkerStyle(20+i);
+    dphi_stag->SetMarkerColor(i==4?i+2:1+i);
+    dphi_stag->SetLineColor(i==4?i+2:1+i);
+    dphi_stag->Draw("same");
+    l_spectrum2->Draw("same");
+
 
 
     // xj distribution over CUETP8M1 stag in one frame
@@ -322,41 +353,42 @@ int plot(){
     dijet_stag->SetMarkerColor(i==4?i+2:1+i);
     dijet_stag->SetLineColor(i==4?i+2:1+i);
     dijet_stag->Draw("same");
-    l_spectrum->Draw("same");
+    l_spectrum2->Draw("same");
     line1->Draw("same");
-
-
-    // dphi distribution over CUETP8M1 flat in one frame -- no pythia6
-    TCanvas* c8 = new TCanvas("c8", "c8", 800, 600);
-    c8->cd();
-    gPad->SetLogy();
-    TH1D* dphi_stag = (TH1D*) h_dijet[i][1]->Clone();
-    dphi_stag->Sumw2();
-    dphi_stag->Divide(h_dijet[0][1]);
-    dphi_stag->GetYaxis()->SetRangeUser(0.6,1.4);
-    dphi_stag->GetXaxis()->SetTitle("|#Delta#phi| (Stag Weighted)");
-    dphi_stag->GetYaxis()->SetTitle(Form("%s/CUETP8M1",files[i].Data()));
-    dphi_stag->Draw();
-    line2->Draw("same");
-    c8->SaveAs("./comp/dphi_stag_" + files[i]+ "_CUETP8M1.pdf");
-    c_dphi_stag->cd();
-    dphi_stag->GetYaxis()->SetTitle("Tune/CUETP8M1");
-    dphi_stag->SetTitle("");
-    dphi_stag->SetMarkerStyle(20+i);
-    dphi_stag->SetMarkerColor(i==4?i+2:1+i);
-    dphi_stag->SetLineColor(i==4?i+2:1+i);
-    dphi_stag->Draw("same");
-    l_spectrum->Draw("same");
-
-
-
     }
+
+    // xj distribution over PYTHIA6 stag in one frame
+    for(int i=0; i<4; i++){
+      TCanvas* c7 = new TCanvas("c7", "c7", 800, 600);
+      c7->cd();
+      TH1D* dijet_stag = (TH1D*) h_dijet[i][3]->Clone();
+      dijet_stag->Sumw2();
+      dijet_stag->Divide(h_dijet[4][3]);
+      dijet_stag->GetYaxis()->SetRangeUser(0.6,1.4);
+      dijet_stag->GetXaxis()->SetTitle("x_{J} (Stag Weighted)");
+      dijet_stag->GetYaxis()->SetTitle(Form("%s/PYTHIA6",files[i].Data()));
+      dijet_stag->Draw();
+      line1->Draw("same");
+      c7->SaveAs("./comp/dijet_stag_" + files[i]+ "_pythia6.pdf");
+      c_dijet_stag_pythia6->cd();
+      dijet_stag->GetYaxis()->SetTitle("Tune/CUETP8M1");
+      dijet_stag->SetTitle("");
+      dijet_stag->SetMarkerStyle(20+i);
+      dijet_stag->SetMarkerColor(i==4?i+2:1+i);
+      dijet_stag->SetLineColor(i==4?i+2:1+i);
+      dijet_stag->Draw("same");
+      l_spectrum3->AddEntry(dijet_stag, Form("%s/PYTHIA6",files[i].Data()));
+      l_spectrum3->Draw("same");
+      line1->Draw("same");
+    }
+
     c_spectrum_flat->SaveAs("./comp/spectrum_flat.pdf");
     c_spectrum_stag->SaveAs("./comp/spectrum_stag.pdf");
     c_dijet_flat->SaveAs("./comp/dijet_flat.pdf");
     c_dijet_stag->SaveAs("./comp/dijet_stag.pdf");
     c_dphi_flat->SaveAs("./comp/dphi_flat.pdf");
     c_dphi_stag->SaveAs("./comp/dphi_stag.pdf");
+    c_dijet_stag_pythia6->SaveAs("./comp/dijet_stag_pythia6.pdf");
 
 
 
