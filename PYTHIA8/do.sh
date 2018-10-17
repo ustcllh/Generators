@@ -1,5 +1,5 @@
 #!/bin/bash
-filepath="/eos/cms/store/group/phys_heavyions/cmcginn/PYTHIA8Tunes_20180906/"
+filepath="/eos/cms/store/group/phys_heavyions/cmcginn/PYTHIA8Tunes_20180926/"
 ./bin/DijetImbalanceRatio.exe $(find $filepath -name *Flat*CP5*) $(find $filepath -name *Pthat*CP5*)
 mv output/statComp*.root output/CP5.root
 ./bin/DijetImbalanceRatio.exe $(find $filepath -name *Flat*CUETP8M1*) $(find $filepath -name *Pthat*CUETP8M1*)
