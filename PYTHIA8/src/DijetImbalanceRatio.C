@@ -8,19 +8,24 @@
 #include "TTree.h"
 #include "TDatime.h"
 #include "TH1D.h"
+#include "TH2D.h"
 #include "TNamed.h"
+#include "TCanvas.h"
 
 //Local dependencies
 #include "Utility/include/checkMakeDir.h"
 #include "Utility/include/getLinBins.h"
 #include "Utility/include/histDefUtility.h"
 #include "Utility/include/returnRootFileContentsList.h"
+#include "Utility/include/trandomWithTH2.h"
 
 //Define PI
 #define PI 3.14159265359
 
 int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string stagPthatFileName)
 {
+  std::string res_matrix_name = "/eos/cms/store/group/phys_heavyions/cmcginn/PYTHIA8_ak4GenSkim_20180924/HiForestAOD_Pythia8_TuneCUETP8M1_DijetAllPthatMERGED_pp502_TuneCUETP8M1_Forest_20180920_180920_092537_MERGED_ForestToGen_IsPyt6False_20180924_RemovedDupTNamed.root";
+  bool goodResMtxFile = checkFile(res_matrix_name);
   bool goodFlatFile = checkFile(flatPthatFileName);
   bool goodStagFile = checkFile(stagPthatFileName);
 
@@ -29,9 +34,115 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
       std::cout << "Input flat pTHat file \'" << flatPthatFileName << "\' is invalid. return 1" << std::endl;
     if (!goodStagFile)
       std::cout << "Input stag pTHat file \'" << stagPthatFileName << "\' is invalid. return 1" << std::endl;
+    if (!goodResMtxFile)
+      std::cout << "Input res maxtrix file \'" << res_matrix_name << "\' is invalid. return 1" << std::endl;
     return 1;
   }
 
+  // initiate res ponse matrix 
+  TH2D* ResMtx_h = new TH2D("", ";reco pt; gen pt", 1000, 0, 1000, 1000, 0, 1000); 
+  TFile *ResMtxFile_p = new TFile(res_matrix_name.c_str(), "READ");
+  TTree *ResMtxTree_p = (TTree *) ResMtxFile_p->Get("ak4GenJetTree_ESchemeWTA");
+  Float_t pthat_resmtx;
+  std::vector <Float_t> *genjetpt = new std::vector <Float_t> ();
+  std::vector <Float_t> *recojetpt = new std::vector <Float_t> ();
+  ResMtxTree_p->SetBranchAddress("genJtPt", &genjetpt);
+  ResMtxTree_p->SetBranchAddress("toyRecoJtPt", &recojetpt);
+  ResMtxTree_p->SetBranchAddress("pthat", &pthat_resmtx);
+
+  //Grabbing cross section values for weighting internally
+  std::vector <std::string> tnamedPthat_resmtx = returnRootFileContentsList(ResMtxFile_p, "TNamed", "crossSecti");
+  const Int_t nPthatFiles_resmtx = tnamedPthat_resmtx.size();
+  Double_t nEvtPerPthatStag_resmtx[nPthatFiles_resmtx];
+  Double_t weightsPerPthat_resmtx[nPthatFiles_resmtx];
+  Double_t pthatFiles_resmtx[nPthatFiles_resmtx + 1];
+  Double_t xSections_resmtx[nPthatFiles_resmtx + 1];
+
+  for (int pI = 0; pI < nPthatFiles_resmtx; ++pI) {
+    std::string pthatStr = tnamedPthat_resmtx.at(pI);
+    pthatStr.replace(0, pthatStr.find("Pthat") + 5, "");
+    pthatFiles_resmtx[pI] = std::stod(pthatStr);
+    TNamed *temp = (TNamed *) ResMtxFile_p->Get(tnamedPthat_resmtx.at(pI).c_str());
+    std::string xSectionStr = temp->GetTitle();
+    xSections_resmtx[pI] = std::stod(xSectionStr);
+  }
+  pthatFiles_resmtx[nPthatFiles_resmtx] = 9999.;
+  xSections_resmtx[nPthatFiles_resmtx] = 0.000;
+
+  //do sort
+  int pos_resmtx = 0;
+  while (pos_resmtx < nPthatFiles_resmtx) {
+    bool isGood = true;
+
+    for (int pI = pos_resmtx + 1; pI < nPthatFiles_resmtx + 1; ++pI) {
+      if (pthatFiles_resmtx[pos_resmtx] > pthatFiles_resmtx[pI]) {
+        Double_t tempPthat = pthatFiles_resmtx[pI];
+        Double_t tempX = xSections_resmtx[pI];
+
+        pthatFiles_resmtx[pI] = pthatFiles_resmtx[pos_resmtx];
+        xSections_resmtx[pI] = xSections_resmtx[pos_resmtx];
+
+        pthatFiles_resmtx[pos_resmtx] = tempPthat;
+        xSections_resmtx[pos_resmtx] = tempX;
+
+        isGood = false;
+      }
+    }
+
+    if (isGood)
+      ++pos_resmtx;
+  }
+
+  for (Int_t pI = 0; pI < nPthatFiles_resmtx; ++pI) {
+    nEvtPerPthatStag_resmtx[pI] = 0.;
+    weightsPerPthat_resmtx[pI] = 0.;
+  }
+
+  for (Int_t entry = 0; entry < (Int_t) ResMtxTree_p->GetEntries(); ++entry) {
+    ResMtxTree_p->GetEntry(entry);
+    if (pthat_resmtx < 15.){
+      pthat_resmtx = 15.;
+    }
+
+    for (Int_t pI = 0; pI < nPthatFiles_resmtx; ++pI) {
+      if (pthat_resmtx >= pthatFiles_resmtx[pI] && pthat_resmtx < pthatFiles_resmtx[pI + 1]) {
+        nEvtPerPthatStag_resmtx[pI]++;
+        break;
+      }
+    }
+  }
+
+  for (Int_t pI = 0; pI < nPthatFiles_resmtx; ++pI) {
+    weightsPerPthat_resmtx[pI] = (xSections_resmtx[pI] - xSections_resmtx[pI + 1]) / (nEvtPerPthatStag_resmtx[pI]);
+  }
+  for (Int_t pI = 1; pI < nPthatFiles_resmtx; ++pI) {
+    weightsPerPthat_resmtx[pI] /= weightsPerPthat_resmtx[0];
+  }
+  weightsPerPthat_resmtx[0] = 1.;
+
+  for (Int_t entry = 0; entry < (Int_t) ResMtxTree_p->GetEntries(); ++entry) {
+    ResMtxTree_p->GetEntry(entry);
+
+    Double_t tempWeight_ = 1.;
+    for (Int_t pI = 0; pI < nPthatFiles_resmtx; ++pI) {
+      if (pthat_resmtx >= pthatFiles_resmtx[pI] && pthat_resmtx < pthatFiles_resmtx[pI + 1]) {
+        tempWeight_ = weightsPerPthat_resmtx[pI];
+        break;
+      }
+    }
+
+    for(int idx=0; idx<(int)genjetpt->size(); idx++){
+      ResMtx_h->Fill(recojetpt->at(idx), genjetpt->at(idx), tempWeight_);
+    }
+  }
+  trandomWithTH2 resmtx (ResMtx_h);
+  delete genjetpt;
+  delete recojetpt;
+  //resmtx.Print();
+  //resmtx.Plot();
+
+
+  // start analysis
   TDatime *date = new TDatime();
   const std::string dateStr = std::to_string(date->GetDate());
   delete date;
@@ -117,13 +228,13 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
 
   // dijet xj
   TH1D *dijet_flatPthat_Unweighted_h = new TH1D("dijet_flatPthat_Unweighted_h",
-                                                ";X_{J} (Flat Unweighted);Counts (Unweighted)", 10, 0, 1);
+                                                ";X_{J} (Flat Unweighted);Counts (Unweighted)", 20, 0, 1);
   TH1D *dijet_flatPthat_Weighted_h = new TH1D("dijet_flatPthat_Weighted_h",
-                                              ";X_{J} (Flat Weighted);Counts (Weighted)", 10, 0, 1);
+                                              ";X_{J} (Flat Weighted);Counts (Weighted)", 20, 0, 1);
   TH1D *dijet_stagPthat_Unweighted_h = new TH1D("dijet_stagPthat_Unweighted_h",
-                                                ";X_{J} (Stag Unweighted);Counts (Unweighted)", 10, 0, 1);
+                                                ";X_{J} (Stag Unweighted);Counts (Unweighted)", 20, 0, 1);
   TH1D *dijet_stagPthat_Weighted_h = new TH1D("dijet_stagPthat_Weighted_h",
-                                              ";X_{J} (Stag Weighted);Counts (Weighted)", 10, 0, 1);
+                                              ";X_{J} (Stag Weighted);Counts (Weighted)", 20, 0, 1);
   //dijet dphi
   TH1D *dphi_flatPthat_Unweighted_h = new TH1D("dphi_flatPthat_Unweighted_h",
                                                ";|#Delta#phi| (Flat Unweighted);Counts (Unweighted)", 20, 0, PI);
@@ -150,13 +261,16 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   std::vector < Float_t > *jet_eta = new std::vector < Float_t > ();
 
   TFile *inFlatFile_p = new TFile(flatPthatFileName.c_str(), "READ");
-  TTree *flatGenTree_p = (TTree *) inFlatFile_p->Get("genTree");
+  //TTree *flatGenTree_p = (TTree *) inFlatFile_p->Get("genTree");
+  //tree name for smearing data
+  TTree *flatGenTree_p = (TTree *) inFlatFile_p->Get("ak4GenJetTree_ESchemeWTA");
 
   flatGenTree_p->SetBranchStatus("*", 0);
   flatGenTree_p->SetBranchStatus("pthat", 1);
   flatGenTree_p->SetBranchStatus("weight", 1);
   flatGenTree_p->SetBranchStatus("nGenJt", 1);
   flatGenTree_p->SetBranchStatus("genJtPt", 1);
+  flatGenTree_p->SetBranchStatus("toyRecoJtPt", 1);
   flatGenTree_p->SetBranchStatus("genJtPhi", 1);
   flatGenTree_p->SetBranchStatus("genJtEta", 1);
 
@@ -164,6 +278,10 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   flatGenTree_p->SetBranchAddress("weight", &weight_);
   flatGenTree_p->SetBranchAddress("nGenJt", &n_jet);
   flatGenTree_p->SetBranchAddress("genJtPt", &jet_pt);
+  //use trandomWithTH2 to do smearing
+  //use smearing jet pt
+  //relative resolution parametrization of sigma = SQRT(0.06*0.06 + 0.9*0.9/genjtpt)
+  //flatGenTree_p->SetBranchAddress("toyRecoJtPt", &jet_pt);
   flatGenTree_p->SetBranchAddress("genJtPhi", &jet_phi);
   flatGenTree_p->SetBranchAddress("genJtEta", &jet_eta);
 
@@ -173,7 +291,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
     flatGenTree_p->GetEntry(entry);
 
     if (pthat_ < 15.){
-      pthat_ = 15.;
+      continue;
     }
 
     for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
@@ -184,6 +302,9 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
     }
   }
 
+  // do smearing with trandomWithTH2
+  recojetpt = new std::vector <Float_t> ();
+
   Double_t weightRenorm = flatGenTree_p->GetMaximum("weight");
   std::cout << "Processing flatGenTree, nEntries=" << nEntries << "..." << std::endl;
   for (Int_t entry = 0; entry < nEntries; ++entry) {
@@ -192,10 +313,60 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
       pthat_ = 15.;
     }
 
+    // reco jet pt 
+    recojetpt->clear();
+    for(auto&& jetpt : *jet_pt){
+      recojetpt->push_back(resmtx.GetRecoPtFromMatrix(jetpt));
+    }
+
     int leading = 0;
     int subleading = 0;
     Float_t leading_pt = -9999;
     Float_t subleading_pt = -9999;
+
+    if (n_jet == 0)
+      continue;
+    if (n_jet == 1){
+        if(recojetpt->at(0)>100){
+      jetpt_flatPthat_Unweighted_h->Fill(recojetpt->at(0));
+      jetpt_flatPthat_Weighted_h->Fill(recojetpt->at(0), weight_ / weightRenorm);
+    }
+      continue;
+    }
+      
+    for (int i = 0; i < n_jet; i++) {
+        if(recojetpt->at(i)>100){
+      jetpt_flatPthat_Unweighted_h->Fill(recojetpt->at(i));
+      jetpt_flatPthat_Weighted_h->Fill(recojetpt->at(i), weight_ / weightRenorm);
+    }
+      if (recojetpt->at(i) > leading_pt) {
+        if (leading_pt > subleading_pt) {
+          subleading_pt = leading_pt;
+          subleading = leading;
+        }
+        leading_pt = recojetpt->at(i);
+        leading = i;
+      } else {
+        if (recojetpt->at(i) > subleading_pt) {
+          subleading_pt = recojetpt->at(i);
+          subleading = i;
+        } else
+          continue;
+      }
+    }
+    if(recojetpt->at(leading)<0 || recojetpt->at(subleading)<0) continue;
+    Float_t dphi = acos(cos(jet_phi->at(leading) - jet_phi->at(subleading)));
+    dphi_flatPthat_Unweighted_h->Fill(dphi);
+    dphi_flatPthat_Weighted_h->Fill(dphi, weight_ / weightRenorm);
+    if (dphi < PI * 2. / 3. || recojetpt->at(leading) < 120 || recojetpt->at(subleading) < 30
+        || std::fabs(jet_eta->at(leading)) > 2 || std::fabs(jet_eta->at(subleading)) > 2)
+      continue;
+    Float_t xj = recojetpt->at(subleading) / recojetpt->at(leading);
+    dijet_flatPthat_Unweighted_h->Fill(xj);
+    dijet_flatPthat_Weighted_h->Fill(xj, weight_ / weightRenorm);
+  }
+
+    /*
     if (n_jet == 0 || n_jet == 1)
       continue;
     for (int i = 0; i < n_jet; i++) {
@@ -218,6 +389,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
           continue;
       }
     }
+    if(jet_pt->at(leading)<0 || jet_pt->at(subleading)<0) continue;
     Float_t dphi = acos(cos(jet_phi->at(leading) - jet_phi->at(subleading)));
     dphi_flatPthat_Unweighted_h->Fill(dphi);
     dphi_flatPthat_Weighted_h->Fill(dphi, weight_ / weightRenorm);
@@ -228,19 +400,23 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
     dijet_flatPthat_Unweighted_h->Fill(xj);
     dijet_flatPthat_Weighted_h->Fill(xj, weight_ / weightRenorm);
   }
+  */
 
   inFlatFile_p->Close();
   delete inFlatFile_p;
 
   std::cout << "REOPEN FILE?" << std::endl;
   inStagFile_p = new TFile(stagPthatFileName.c_str(), "READ");
-  TTree *stagGenTree_p = (TTree *) inStagFile_p->Get("genTree");
+  //TTree *stagGenTree_p = (TTree *) inStagFile_p->Get("genTree");
+  //tree name for smearing data
+  TTree *stagGenTree_p = (TTree *) inStagFile_p->Get("ak4GenJetTree_ESchemeWTA");
 
   stagGenTree_p->SetBranchStatus("*", 0);
   stagGenTree_p->SetBranchStatus("pthat", 1);
   stagGenTree_p->SetBranchStatus("weight", 1);
   stagGenTree_p->SetBranchStatus("nGenJt", 1);
   stagGenTree_p->SetBranchStatus("genJtPt", 1);
+  stagGenTree_p->SetBranchStatus("toyRecoJtPt", 1);
   stagGenTree_p->SetBranchStatus("genJtPhi", 1);
   stagGenTree_p->SetBranchStatus("genJtEta", 1);
 
@@ -248,6 +424,9 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
   stagGenTree_p->SetBranchAddress("weight", &weight_);
   stagGenTree_p->SetBranchAddress("nGenJt", &n_jet);
   stagGenTree_p->SetBranchAddress("genJtPt", &jet_pt);
+  //use smearing jet pt
+  //relative resolution parametrization of sigma = SQRT(0.06*0.06 + 0.9*0.9/genjtpt)
+  //stagGenTree_p->SetBranchAddress("toyRecoJtPt", &jet_pt);
   stagGenTree_p->SetBranchAddress("genJtPhi", &jet_phi);
   stagGenTree_p->SetBranchAddress("genJtEta", &jet_eta);
 
@@ -257,7 +436,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
     stagGenTree_p->GetEntry(entry);
 
     if (pthat_ < 15.){
-      pthat_ = 15;
+      pthat_ = 15.;
     }
 
     for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
@@ -304,7 +483,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
     stagGenTree_p->GetEntry(entry);
 
     if (pthat_ < 15.){
-      pthat_ = 15;
+      pthat_ = 15.;
     }
 
     Double_t tempWeight_ = 1.;
@@ -314,10 +493,59 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
         break;
       }
     }
+
+    // reco jet pt 
+    recojetpt->clear();
+    for(auto&& jetpt : *jet_pt){
+      recojetpt->push_back(resmtx.GetRecoPtFromMatrix(jetpt));
+    }
+
     int leading = 0;
     int subleading = 0;
     Float_t leading_pt = -9999;
     Float_t subleading_pt = -9999;
+    if (n_jet == 0)
+      continue;
+    if (n_jet == 1){
+        if(recojetpt->at(0)>100){
+      jetpt_stagPthat_Unweighted_h->Fill(recojetpt->at(0));
+      jetpt_stagPthat_Weighted_h->Fill(recojetpt->at(0), tempWeight_);
+    }
+      continue;
+    }
+    for (int i = 0; i < n_jet; i++) {
+      if(recojetpt->at(i)>100){
+    jetpt_stagPthat_Unweighted_h->Fill(recojetpt->at(i));
+    jetpt_stagPthat_Weighted_h->Fill(recojetpt->at(i), tempWeight_);
+  }
+      if (recojetpt->at(i) > leading_pt) {
+        if (leading_pt > subleading_pt) {
+          subleading_pt = leading_pt;
+          subleading = leading;
+        }
+        leading_pt = recojetpt->at(i);
+        leading = i;
+      } else {
+        if (recojetpt->at(i) > subleading_pt) {
+          subleading_pt = recojetpt->at(i);
+          subleading = i;
+        } else
+          continue;
+      }
+    }
+    if(recojetpt->at(leading)<15 || recojetpt->at(subleading)<15) continue;
+    Float_t dphi = acos(cos(jet_phi->at(leading) - jet_phi->at(subleading)));
+    dphi_stagPthat_Unweighted_h->Fill(dphi);
+    dphi_stagPthat_Weighted_h->Fill(dphi, tempWeight_);
+    if (dphi < PI * 2. / 3. || recojetpt->at(leading) < 120 || recojetpt->at(subleading) < 30
+        || std::fabs(jet_eta->at(leading)) > 2 || std::fabs(jet_eta->at(subleading)) > 2)
+      continue;
+    Float_t xj = recojetpt->at(subleading) / recojetpt->at(leading);
+    dijet_stagPthat_Unweighted_h->Fill(xj);
+    dijet_stagPthat_Weighted_h->Fill(xj, tempWeight_);
+  }
+
+    /*
     if (n_jet == 0 || n_jet == 1)
       continue;
     for (int i = 0; i < n_jet; i++) {
@@ -340,6 +568,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
           continue;
       }
     }
+    if(jet_pt->at(leading)<0 || jet_pt->at(subleading)<0) continue;
     Float_t dphi = acos(cos(jet_phi->at(leading) - jet_phi->at(subleading)));
     dphi_stagPthat_Unweighted_h->Fill(dphi);
     dphi_stagPthat_Weighted_h->Fill(dphi, tempWeight_);
@@ -350,6 +579,7 @@ int DijetImbalanceRatio(const std::string flatPthatFileName, const std::string s
     dijet_stagPthat_Unweighted_h->Fill(xj);
     dijet_stagPthat_Weighted_h->Fill(xj, tempWeight_);
   }
+  */
 
   inStagFile_p->Close();
   delete inStagFile_p;

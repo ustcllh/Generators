@@ -9,6 +9,7 @@
 #include "TDatime.h"
 #include "TH1D.h"
 #include "TNamed.h"
+#include "TRandom3.h"
 
 //Local dependencies
 #include "Utility/include/checkMakeDir.h"
@@ -108,9 +109,9 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
 
   // dijet xj
   TH1D *dijet_stagPthat_Unweighted_h = new TH1D("dijet_stagPthat_Unweighted_h",
-                                                ";X_{J} (Stag Unweighted);Counts (Unweighted)", 10, 0, 1);
+                                                ";X_{J} (Stag Unweighted);Counts (Unweighted)", 20, 0, 1);
   TH1D *dijet_stagPthat_Weighted_h = new TH1D("dijet_stagPthat_Weighted_h",
-                                              ";X_{J} (Stag Weighted);Counts (Weighted)", 10, 0, 1);
+                                              ";X_{J} (Stag Weighted);Counts (Weighted)", 20, 0, 1);
   //dijet dphi
   TH1D *dphi_stagPthat_Unweighted_h = new TH1D("dphi_stagPthat_Unweighted_h",
                                                ";|#Delta#phi| (Stag Unweighted);Counts (Unweighted)", 20, 0, PI);
@@ -132,30 +133,37 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
 
 
   inStagFile_p = new TFile(stagPthatFileName.c_str(), "READ");
-  TTree *stagGenTree_p = (TTree *) inStagFile_p->Get("genTree");
+  //TTree *stagGenTree_p = (TTree *) inStagFile_p->Get("genTree");
+  //tree name for smearing data
+  TTree *stagGenTree_p = (TTree *) inStagFile_p->Get("ak4GenJetTree_ESchemeWTA");
 
   stagGenTree_p->SetBranchStatus("*", 0);
   stagGenTree_p->SetBranchStatus("pthat", 1);
   stagGenTree_p->SetBranchStatus("weight", 1);
   stagGenTree_p->SetBranchStatus("nGenJt", 1);
   stagGenTree_p->SetBranchStatus("genJtPt", 1);
+  stagGenTree_p->SetBranchStatus("toyRecoJtPt", 1);
   stagGenTree_p->SetBranchStatus("genJtPhi", 1);
   stagGenTree_p->SetBranchStatus("genJtEta", 1);
 
   stagGenTree_p->SetBranchAddress("pthat", &pthat_);
   stagGenTree_p->SetBranchAddress("weight", &weight_);
   stagGenTree_p->SetBranchAddress("nGenJt", &n_jet);
-  stagGenTree_p->SetBranchAddress("genJtPt", &jet_pt);
+  //stagGenTree_p->SetBranchAddress("genJtPt", &jet_pt);
+  //use smering jet pt
+  //relative resolution parametrization of sigma = SQRT(0.06*0.06 + 0.9*0.9/genjtpt)
+  stagGenTree_p->SetBranchAddress("toyRecoJtPt", &jet_pt);
   stagGenTree_p->SetBranchAddress("genJtPhi", &jet_phi);
   stagGenTree_p->SetBranchAddress("genJtEta", &jet_eta);
+
 
   const Int_t nEntriesStag = stagGenTree_p->GetEntries();
   std::cout << "Processing stagGenTree, nEntries=" << nEntriesStag << "..." << std::endl;
   for (Int_t entry = 0; entry < nEntriesStag; ++entry) {
     stagGenTree_p->GetEntry(entry);
 
-    if (pthat_ < 30.){
-      pthat_ = 30;
+    if (pthat_ < 15.){
+      pthat_ = 15.;
     }
 
     for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
@@ -170,11 +178,10 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
     weightsPerPthat[pI] = (xSections[pI] - xSections[pI + 1]) / (nEvtPerPthatStag[pI]);
   }
 
-  for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
-    if(pI==1) continue;
-    weightsPerPthat[pI] /= weightsPerPthat[1];
+  for (Int_t pI = 1; pI < nPthatFiles; ++pI) {
+    weightsPerPthat[pI] /= weightsPerPthat[0];
   }
-  weightsPerPthat[1] = 1.;
+  weightsPerPthat[0] = 1.;
 
   std::cout << "weight / pthat: Staggered" << std::endl;
   for (Int_t pI = 0; pI < nPthatFiles; ++pI) {
@@ -183,11 +190,12 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
   }
 
   std::cout << "Processing stagGenTree, nEntries=" << nEntriesStag << "..." << std::endl;
+  // TRandom3* randGen_p = new TRandom3(0);
   for (Int_t entry = 0; entry < nEntriesStag; ++entry) {
     stagGenTree_p->GetEntry(entry);
 
-    if (pthat_ < 30.){
-      pthat_ = 30;
+    if (pthat_ < 15.){
+      pthat_ = 15.;
     }
 
     Double_t tempWeight_ = 1.;
@@ -201,10 +209,21 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
     int subleading = 0;
     Float_t leading_pt = -9999;
     Float_t subleading_pt = -9999;
-    if (n_jet == 0 || n_jet == 1)
+    if (n_jet == 0)
       continue;
+    if (n_jet == 1){
+      if(jet_pt->at(0)>100){
+      jetpt_stagPthat_Unweighted_h->Fill(jet_pt->at(0));
+      jetpt_stagPthat_Weighted_h->Fill(jet_pt->at(0), tempWeight_);
+      }
+      continue;
+    }
+
     for (int i = 0; i < n_jet; i++) {
-      if(jet_pt->at(i)>50){
+    // double sig = sqrt(0.06*0.06 + 0.9*0.9/jet_pt->at(i));
+    // double tempt = jet_pt->at(i)*(randGen_p->Gaus(1,sig));
+     // if(jet_pt->at(i)>100){
+    if(jet_pt->at(i)>100){
     jetpt_stagPthat_Unweighted_h->Fill(jet_pt->at(i));
     jetpt_stagPthat_Weighted_h->Fill(jet_pt->at(i), tempWeight_);
   }
@@ -223,6 +242,7 @@ int DijetImbalanceRatio_pythia6(const std::string stagPthatFileName)
           continue;
       }
     }
+    if(jet_pt->at(leading)<15 || jet_pt->at(subleading)<15) continue;
     Float_t dphi = acos(cos(jet_phi->at(leading) - jet_phi->at(subleading)));
     dphi_stagPthat_Unweighted_h->Fill(dphi);
     dphi_stagPthat_Weighted_h->Fill(dphi, tempWeight_);
